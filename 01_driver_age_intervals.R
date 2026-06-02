@@ -42,10 +42,10 @@ print(ci_frequency_age, n = Inf, width = Inf)
 claims_only <- insurance_data %>%
   filter(TotalClaim > 0)
 
-cap_95 <- quantile(claims_only$TotalClaim, 0.95, na.rm = TRUE)
+cap_995 <- quantile(claims_only$TotalClaim, 0.995, na.rm = TRUE)
 
 claims_capped <- claims_only %>%
-  mutate(CappedClaim = ifelse(TotalClaim > cap_95, cap_95, TotalClaim))
+  mutate(CappedClaim = ifelse(TotalClaim > cap_995, cap_995, TotalClaim))
 
 ci_severity_age <- claims_capped %>%
   group_by(AgeGroup) %>%
@@ -62,7 +62,6 @@ ci_severity_age <- claims_capped %>%
 print("95% довірчі інтервали для середнього розміру виплати за віковими групами:")
 print(ci_severity_age)
 
-частота аварій з 95% CI
 p1 <- ggplot(ci_frequency_age, aes(x = AgeGroup, y = Frequency)) +
   geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0.12, linewidth = 0.9, color = "steelblue4") +
   geom_point(size = 3, color = "steelblue4") +
@@ -79,14 +78,13 @@ p1 <- ggplot(ci_frequency_age, aes(x = AgeGroup, y = Frequency)) +
 print(p1)
 ggsave("driver_age_frequency_CI.png", p1, width = 9, height = 5, dpi = 300)
 
-середній збиток з 95% CI
 p2 <- ggplot(ci_severity_age, aes(x = AgeGroup, y = mean)) +
   geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0.12, linewidth = 0.9, color = "darkorange3") +
   geom_point(size = 3, color = "darkorange3") +
   geom_text(aes(label = round(mean, 0)), vjust = -1, size = 4, fontface = "bold") +
   labs(
     title = "Середній розмір виплати за віковими групами",
-    subtitle = "95% довірчі інтервали, виплати обмежено 95-м перцентилем",
+    subtitle = "95% довірчі інтервали, виплати обмежено 99.5-м перцентилем",
     x = "Вікова група водія",
     y = "Середня виплата, євро"
   ) +

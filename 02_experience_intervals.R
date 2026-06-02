@@ -23,7 +23,6 @@ insurance_data <- insurance_data %>%
       TRUE ~ 0
     ),
     
-    # Обмеження: оцінний стаж не може бути більшим за фізично можливий
     EstimatedExperience = pmin(EstimatedExperience, MaxPossibleExperience),
     EstimatedExperience = pmax(EstimatedExperience, 0),
     
@@ -76,7 +75,7 @@ ggsave("experience_frequency_CI.png", p_freq, width = 9, height = 5, dpi = 300)
 claims_only <- insurance_data %>% 
   filter(TotalClaim > 0)
 
-cap_95 <- quantile(claims_only$TotalClaim, 0.95, na.rm = TRUE)
+cap_95 <- quantile(claims_only$TotalClaim, 0.995, na.rm = TRUE)
 
 claims_capped <- claims_only %>%
   mutate(CappedClaim = ifelse(TotalClaim > cap_95, cap_95, TotalClaim))
@@ -104,7 +103,7 @@ p <- ggplot(ci_severity_exp, aes(x = ExperienceGroup, y = mean)) +
   geom_text(aes(label = round(mean, 0)), vjust = -1, size = 4, fontface = "bold") +
   labs(
     title = "Середній розмір виплати за оцінним стажем водіння",
-    subtitle = "95% довірчі інтервали, виплати обмежено 95-м перцентилем",
+    subtitle = "95% довірчі інтервали, виплати обмежено 99.5-м перцентилем",
     x = "Оцінний стаж водіння, років",
     y = "Середня виплата, євро"
   ) +

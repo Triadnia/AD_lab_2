@@ -19,6 +19,23 @@ insurance_data <- freq_data %>%
       DrivAge <= 60 ~ "41-60",
       TRUE ~ "60+"
     ),
+    BonusGroup = case_when(
+      BonusMalus >= 50 & BonusMalus <= 80 ~ "50-80 (Супер)",
+      BonusMalus >= 81 & BonusMalus <= 100 ~ "81-100 (Норма)",
+      BonusMalus >= 101 & BonusMalus <= 120 ~ "101-120 (Ризик)",
+      BonusMalus >= 121 & BonusMalus <= 200 ~ "121-200 (Погано)",
+      TRUE ~ NA_character_
+    ),
+    
+    BonusGroup = factor(
+      BonusGroup,
+      levels = c(
+        "50-80 (Супер)",
+        "81-100 (Норма)",
+        "101-120 (Ризик)",
+        "121-200 (Погано)"
+      )
+    ),
     
     MaxPossibleExperience = pmax(DrivAge - 18, 0),
     
@@ -44,6 +61,9 @@ insurance_data <- freq_data %>%
     )
   ) %>%
   filter(Exposure > 0, DrivAge >= 18)
+
+insurance_data <- insurance_data %>%
+  filter(!is.na(BonusGroup))
 
 claims_only <- insurance_data %>% 
   filter(TotalClaim > 0)
@@ -202,11 +222,128 @@ cat(sprintf("Частота інших водіїв: %.6f\n", res_h4$Lambda_high
 cat(sprintf("Різниця частот: %.6f\nSE: %.6f\nСтатистика Волда: %.3f\nP-value: %.6f\n",
             res_h4$Diff, res_h4$SE, res_h4$Statistic, res_h4$P_value))
 
+# H5: Поганий Bonus-Malus має вищу частоту аварій, ніж супер Bonus-Malus
+
+bad_bonus_freq_data <- insurance_data %>%
+  filter(BonusGroup == "121-200 (Погано)")
+
+super_bonus_freq_data <- insurance_data %>%
+  filter(BonusGroup == "50-80 (Супер)")
+
+claims_bad_bonus <- sum(bad_bonus_freq_data$ClaimNb)
+exposure_bad_bonus <- sum(bad_bonus_freq_data$Exposure)
+
+claims_super_bonus <- sum(super_bonus_freq_data$ClaimNb)
+exposure_super_bonus <- sum(super_bonus_freq_data$Exposure)
+
+lambda_bad_bonus <- claims_bad_bonus / exposure_bad_bonus
+lambda_super_bonus <- claims_super_bonus / exposure_super_bonus
+
+diff_h5 <- lambda_bad_bonus - lambda_super_bonus
+
+se_h5 <- sqrt(
+  claims_bad_bonus / exposure_bad_bonus^2 +
+    claims_super_bonus / exposure_super_bonus^2
+)
+
+wald_h5 <- diff_h5 / se_h5
+p_h5 <- 1 - pnorm(wald_h5)
+
+res_h5 <- list(
+  Diff = diff_h5,
+  SE = se_h5,
+  Statistic = wald_h5,
+  P_value = p_h5,
+  Lambda_bad = lambda_bad_bonus,
+  Lambda_super = lambda_super_bonus
+)
+
+cat("\n--- Гіпотеза 5: Поганий Bonus-Malus має вищу частоту аварій ---\n")
+cat(sprintf("Частота групи 121-200 (Погано): %.6f\n", res_h5$Lambda_bad))
+cat(sprintf("Частота групи 50-80 (Супер): %.6f\n", res_h5$Lambda_super))
+cat(sprintf("Різниця частот: %.6f\nSE: %.6f\nСтатистика Волда: %.3f\nP-value: %.6f\n",
+            res_h5$Diff, res_h5$SE, res_h5$Statistic, res_h5$P_value))
+
+
+claims_only_bonus <- insurance_data %>%
+  filter(TotalClaim > 0, !is.na(BonusGroup))
+
+large_threshold_995 <- quantile(claims_only_bonus$TotalClaim, 0.995, na.rm = TRUE)
+cap_995 <- quantile(claims_only_bonus$TotalClaim, 0.995, na.rm = TRUE)
+
+claims_bonus <- claims_only_bonus %>%
+  mutate(
+    LargeClaim = TotalClaim > large_threshold_995,
+    CappedClaim = ifelse(TotalClaim > cap_995, cap_995, TotalClaim)
+  )
+
+# H6: Поганий Bonus-Malus має вищу частку великих виплат, ніж супер Bonus-Malus
+
+bad_bonus_claims <- claims_bonus %>%
+  filter(BonusGroup == "121-200 (Погано)")
+
+super_bonus_claims <- claims_bonus %>%
+  filter(BonusGroup == "50-80 (Супер)")
+
+p_bad_bonus <- mean(bad_bonus_claims$LargeClaim)
+p_super_bonus <- mean(super_bonus_claims$LargeClaim)
+
+n_bad_bonus <- nrow(bad_bonus_claims)
+n_super_bonus <- nrow(super_bonus_claims)
+
+diff_h6 <- p_bad_bonus - p_super_bonus
+
+se_h6 <- sqrt(
+  p_bad_bonus * (1 - p_bad_bonus) / n_bad_bonus +
+    p_super_bonus * (1 - p_super_bonus) / n_super_bonus
+)
+
+wald_h6 <- diff_h6 / se_h6
+p_h6 <- 1 - pnorm(wald_h6)
+
+res_h6 <- list(
+  Diff = diff_h6,
+  SE = se_h6,
+  Statistic = wald_h6,
+  P_value = p_h6,
+  P_bad = p_bad_bonus,
+  P_super = p_super_bonus
+)
+
+cat("\n--- Гіпотеза 6: Поганий Bonus-Malus має вищу частку великих виплат ---\n")
+cat(sprintf("Частка великих виплат 121-200 (Погано): %.6f\n", res_h6$P_bad))
+cat(sprintf("Частка великих виплат 50-80 (Супер): %.6f\n", res_h6$P_super))
+cat(sprintf("Різниця часток: %.6f\nSE: %.6f\nСтатистика Волда: %.3f\nP-value: %.6f\n",
+            res_h6$Diff, res_h6$SE, res_h6$Statistic, res_h6$P_value))
+
+# H7: Поганий Bonus-Malus має вищий середній capped claim, ніж супер Bonus-Malus
+
+claim_bad_bonus <- claims_bonus %>%
+  filter(BonusGroup == "121-200 (Погано)") %>%
+  pull(CappedClaim)
+
+claim_super_bonus <- claims_bonus %>%
+  filter(BonusGroup == "50-80 (Супер)") %>%
+  pull(CappedClaim)
+
+res_h7 <- wald_test_means(
+  claim_bad_bonus,
+  claim_super_bonus,
+  alternative = "greater"
+)
+
+cat("\n--- Гіпотеза 7: Поганий Bonus-Malus має вищий середній розмір виплати ---\n")
+cat(sprintf("Різниця середніх виплат: %.2f\nSE: %.2f\nСтатистика Волда: %.3f\nP-value: %.6f\n",
+            res_h7$Diff, res_h7$SE, res_h7$Statistic, res_h7$P_value))
+
 raw_pvals <- c(
   H1_Frequency_Young = res_h1$P_value,
   H2_Severity_Young = res_h2$P_value,
   H3_Severity_LowExperience = res_h3$P_value,
-  H4_Frequency_LowExperience = res_h4$P_value
+  H4_Frequency_LowExperience = res_h4$P_value,
+  H5_Frequency_BadBonus = res_h5$P_value,
+  H6_LargeClaimRate_BadBonus = res_h6$P_value,
+  H7_Severity_BadBonus = res_h7$P_value
 )
 
 adjusted_pvals <- p.adjust(raw_pvals, method = "BH")
