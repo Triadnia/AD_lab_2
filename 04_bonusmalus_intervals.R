@@ -67,7 +67,7 @@ ggsave("bonus_frequency_CI.png", p_freq_bonus, width = 9, height = 5, dpi = 300)
 claims_only <- insurance_data %>%
   filter(TotalClaim > 0)
 
-large_threshold_995 <- quantile(claims_only$TotalClaim, 0.995, na.rm = TRUE)
+large_threshold_995 <- quantile(claims_only$TotalClaim, 0.95, na.rm = TRUE)
 
 claims_bonus <- claims_only %>%
   mutate(
@@ -86,7 +86,7 @@ ci_large_bonus <- claims_bonus %>%
     .groups = "drop"
   )
 
-print("99.5-й перцентиль TotalClaim для визначення великої виплати:")
+print("95-й перцентиль TotalClaim для визначення великої виплати:")
 print(large_threshold_995)
 print("95% довірчі інтервали для частки великих виплат за Bonus-Malus групами:")
 print(ci_large_bonus, n = Inf, width = Inf)
@@ -98,7 +98,7 @@ p_large_bonus <- ggplot(ci_large_bonus, aes(x = BonusGroup, y = LargeClaimRate))
   geom_text(aes(label = paste0(round(LargeClaimRate * 100, 2), "%")), vjust = -1, size = 4, fontface = "bold") +
   labs(
     title = "Частка великих виплат за групами Bonus-Malus",
-    subtitle = "Велика виплата = верхні 0.5% TotalClaim; 95% довірчі інтервали для частки",
+    subtitle = "Велика виплата = верхні 5% TotalClaim; 95% довірчі інтервали для частки",
     x = "Група Bonus-Malus",
     y = "Частка великих виплат"
   ) +
