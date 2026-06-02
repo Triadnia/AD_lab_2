@@ -268,12 +268,12 @@ cat(sprintf("Різниця частот: %.6f\nSE: %.6f\nСтатистика �
 claims_only_bonus <- insurance_data %>%
   filter(TotalClaim > 0, !is.na(BonusGroup))
 
-large_threshold_995 <- quantile(claims_only_bonus$TotalClaim, 0.995, na.rm = TRUE)
+large_threshold_95 <- quantile(claims_only_bonus$TotalClaim, 0.95, na.rm = TRUE)
 cap_995 <- quantile(claims_only_bonus$TotalClaim, 0.995, na.rm = TRUE)
 
 claims_bonus <- claims_only_bonus %>%
   mutate(
-    LargeClaim = TotalClaim > large_threshold_995,
+    LargeClaim = TotalClaim > large_threshold_95,
     CappedClaim = ifelse(TotalClaim > cap_995, cap_995, TotalClaim)
   )
 
